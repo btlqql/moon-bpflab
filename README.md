@@ -2,6 +2,8 @@
 
 日期：2026-10-24。目标：验证在 MoonBit 内实现用户态 BPF 执行核心是否可行，重点覆盖 64 位语义、内存边界和执行预算。
 
+仓库：https://github.com/btlqql/moon-bpflab
+
 ## 已实现
 
 - 指令子集：ALU32/ALU64 的加减乘除、位运算、移位、取模、取负、移动；条件跳转的寄存器/立即数两种形式；JA、CALL、EXIT；LDX/STX/ST 的 1/2/4/8 字节；LD_IMM64。
@@ -23,7 +25,7 @@
 8. helper 1 对 `[1,2,3,4]` 返回 10。
 9. 循环超预算、写 r10、越界跳转、未知 opcode 均被拒绝。
 
-三个后端（默认 wasm-gc、wasm、js）全部通过。native 未运行：本机没有 C 编译器。
+本地三个后端（默认 wasm-gc、wasm、js）全部通过；远端 GitHub Actions 的 wasm、wasm-gc、js、native 四个任务也全部通过。本机没有 C 编译器，所以本地 native 未运行。
 
 ## 最小使用示例
 
