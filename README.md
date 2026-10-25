@@ -51,7 +51,7 @@ bpflab run <file> [input-hex] [--trace]
 bpflab elf <file>                    print entry, sections and symbols
 ```
 
-`run` 的第二个参数是可选的十六进制输入，作为只读输入区；`--trace` 每步打印 pc、反汇编和 r0；`--break` 在指定 pc 停止；`--when` 在“pc 处且寄存器等于指定值”时停止。
+`run` 的第二个参数是可选的十六进制输入，作为只读输入区；`--trace` 每步打印 pc、反汇编和 r0；`--break` 在指定 pc 停止；`--when` 在“pc 处且寄存器等于指定值”时停止；`--coverage` 输出每条指令的执行次数。
 
 ## 支持的指令
 

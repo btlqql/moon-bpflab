@@ -151,6 +151,7 @@ fn run() -> Unit {
   } else if command == "run" && args.length() >= 4 {
     let mut input : Array[Int] = []
     let mut trace = false
+    let mut show_coverage = false
     let mut break_pc = -1
     let mut has_condition = false
     let mut condition_pc = -1
@@ -160,6 +161,9 @@ fn run() -> Unit {
     while i < args.length() {
       if args[i] == "--trace" {
         trace = true
+        i = i + 1
+      } else if args[i] == "--coverage" {
+        show_coverage = true
         i = i + 1
       } else if args[i] == "--break" && i + 1 < args.length() {
         match dec_parse(args[i + 1]) {
@@ -312,6 +316,14 @@ fn run() -> Unit {
             try {
               let result = machine.run()
               println("r0=0x" + result.to_string(radix=16) + " (" + result.to_string() + ")")
+              if show_coverage {
+                let counts = machine.coverage()
+                for pc in 0..<counts.length() {
+                  if counts[pc] > 0 {
+                    println("coverage pc=" + pc.to_string() + " count=" + counts[pc].to_string())
+                  }
+                }
+              }
             } catch {
               err => {
                 stderr("ERROR: execution or ELF decode failed")
