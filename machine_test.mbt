@@ -199,3 +199,25 @@ test "coverage counts executed instructions" {
   assert_eq(machine.execution_count(1), 3)
   assert_eq(machine.execution_count(2), 1)
 }
+
+///|
+test "bounded run stops after the requested steps" {
+  let prog = [
+    insn(0xb7, 0, 0, 0, 1),
+    insn(0xb7, 0, 0, 0, 2),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  let machine = Machine::new_default(prog, [])
+  match machine.run_n(1) {
+    Continue => assert_eq(machine.snapshot().pc, 1)
+    _ => fail("first step should continue")
+  }
+  match machine.run_n(1) {
+    Continue => assert_eq(machine.snapshot().pc, 2)
+    _ => fail("second step should continue")
+  }
+  match machine.run_n(5) {
+    Halted(value) => assert_eq(value.to_int(), 2)
+    _ => fail("third step should halt")
+  }
+}

@@ -357,6 +357,19 @@ pub fn Machine::run(self : Machine) -> UInt64 raise BpfError {
   result
 }
 
+pub fn Machine::run_n(self : Machine, limit : Int) -> StepResult raise BpfError {
+  let mut count = 0
+  while count < limit && !self.halted {
+    ignore(self.step())
+    count = count + 1
+  }
+  if self.halted {
+    Halted(self.retval)
+  } else {
+    Continue
+  }
+}
+
 pub fn Machine::run_until_break(self : Machine) -> StepResult raise BpfError {
   let mut done = false
   let mut result = BreakpointHit(self.pc)
