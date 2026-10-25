@@ -185,3 +185,17 @@ test "conditional breakpoint waits for a register value" {
   }
   assert_eq(machine.snapshot().regs[0].to_int(), 2)
 }
+
+///|
+test "coverage counts executed instructions" {
+  let prog = [
+    insn(0x07, 0, 0, 0, 1),
+    insn(0xa5, 0, 0, -2, 3),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  let machine = Machine::new_default(prog, [])
+  ignore(machine.run())
+  assert_eq(machine.execution_count(0), 3)
+  assert_eq(machine.execution_count(1), 3)
+  assert_eq(machine.execution_count(2), 1)
+}

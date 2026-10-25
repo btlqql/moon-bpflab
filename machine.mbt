@@ -31,6 +31,7 @@ pub(all) struct Machine {
   breakpoints : Array[Int]
   conditions : Array[ConditionalBreak]
   call_stack : Array[Int]
+  executed : Array[Int]
   max_call_depth : Int
 }
 
@@ -50,6 +51,7 @@ pub fn Machine::new(
     breakpoints: Array::new(),
     conditions: Array::new(),
     call_stack: Array::new(),
+    executed: Array::new(),
     max_call_depth: 8,
   }
 }
@@ -123,6 +125,22 @@ pub fn Machine::snapshot(self : Machine) -> Snapshot {
     halted: self.halted,
     retval: self.retval,
     regs,
+  }
+}
+
+pub fn Machine::coverage(self : Machine) -> Array[Int] {
+  let out : Array[Int] = Array::new()
+  for value in self.executed {
+    out.push(value)
+  }
+  out
+}
+
+pub fn Machine::execution_count(self : Machine, pc : Int) -> Int {
+  if pc < 0 || pc >= self.executed.length() {
+    0
+  } else {
+    self.executed[pc]
   }
 }
 
@@ -305,6 +323,10 @@ pub fn Machine::step(self : Machine) -> StepResult raise BpfError {
   if self.steps > self.max_steps {
     raise StepBudgetExceeded
   }
+  while self.executed.length() <= self.pc {
+    self.executed.push(0)
+  }
+  self.executed[self.pc] = self.executed[self.pc] + 1
   let (next, halt) = step_once(
     self.program, self.vm, self.pc, self.call_stack, self.max_call_depth,
   )

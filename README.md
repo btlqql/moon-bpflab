@@ -17,7 +17,7 @@ MoonCakes 上已有 [hevienz/moonbit_libbpf](https://mooncakes.io/docs/hevienz/m
 - **指令执行**：ALU32/ALU64、条件跳转、LDX/STX/ST、LD_IMM64、CALL、EXIT。
 - **64 位语义**：位模式运算、32 位结果零扩展、算术/逻辑右移、有符号与无符号比较、除零拒绝。
 - **内存模型**：只读输入区、可写栈区、map 值暂存区；越界访问拒绝。
-- **调试器**：`Machine::step()`、断点、条件断点（寄存器等于指定值）、`run_until_break()`、寄存器快照。
+- **调试器**：`Machine::step()`、断点、条件断点（寄存器等于指定值）、`run_until_break()`、寄存器快照、指令覆盖计数。
 - **子程序调用**：`call` 带返回栈和调用深度上限；超限拒绝。
 - **Array map**：lookup/update/delete helper，键值大小与容量检查。
 - **ELF64 子集**：读取 little-endian ELF、`.text`、`.symtab`/`.strtab`，只接受 `EM_BPF`。
@@ -67,14 +67,14 @@ helper 1 对输入/栈逐字节求和；helper 2/3/4 是 array map 的 lookup/up
 
 ## 测试
 
-`moon test` 共 24 项：
+`moon test` 共 25 项：
 
 - r0 返回、64 位溢出、32 位零扩展/回绕、有符号与无符号跳转分歧。
 - 小端加载、输入只读、栈往返、越界拒绝。
 - 除零、未知 helper、未知 opcode、r10 写入、越界跳转、步数预算。
 - helper 求和。
 - 反汇编 ALU/内存/跳转/helper。
-- 单步、快照、断点、条件断点。
+- 单步、快照、断点、条件断点、指令覆盖计数。
 - 本地子程序调用与调用深度上限。
 - array map update/lookup/delete。
 - 最小 ELF 加载、原始字节码解码、坏 ELF 拒绝。
