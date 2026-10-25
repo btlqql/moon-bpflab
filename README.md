@@ -1,65 +1,94 @@
-# MoonBpfLab 可行性原型
+# MoonBpfLab
 
-日期：2026-10-24。目标：验证在 MoonBit 内实现用户态 BPF 执行核心是否可行，重点覆盖 64 位语义、内存边界和执行预算。
+用户态 BPF 执行与调试工具：加载原始字节码或 ELF `.text`，反汇编、单步、设断点、查看寄存器与内存，并执行受限指令集。
 
-仓库：https://github.com/btlqql/moon-bpflab
+- 仓库：https://github.com/btlqql/moon-bpflab
+- 版本：0.1.0
+- 许可证：Apache-2.0
 
-## 已实现
+## 为什么单独做这一层
 
-- 指令子集：ALU32/ALU64 的加减乘除、位运算、移位、取模、取负、移动；条件跳转的寄存器/立即数两种形式；JA、CALL、EXIT；LDX/STX/ST 的 1/2/4/8 字节；LD_IMM64。
-- 11 个 64 位寄存器；r1 指向只读输入区，r10 指向栈顶且不可写。
-- 输入区与栈区分开做地址区域检查；输入只读，栈可写；越界读写拒绝。
-- 除零、未知 opcode、未知 helper、非法寄存器、越界跳转、程序末尾无 EXIT 均报错。
-- 步数预算，循环程序会以 `StepBudgetExceeded` 终止。
-- helper 1：按指针和长度对内存逐字节求和。
+MoonCakes 上已有 [hevienz/moonbit_libbpf](https://mooncakes.io/docs/hevienz/moonbit_libbpf)，它把 libbpf 绑定给 MoonBit，调用的是内核/宿主能力。MoonBpfLab 的方向相反：**在 MoonBit 内解释并调试指令**，不把执行转发给 C 库或内核。
 
-## 测试（`bpf_test.mbt`，9 项）
+2026-10-24 在 MoonCakes 搜索 `bpf` 只找到 libbpf 绑定和沙箱规划器，未发现用户态 BPF 虚拟机/调试器。搜索未命中不等于绝对不存在，私有实现和不同命名仍是盲区。
 
-1. r0 返回值（正数与负数）。
-2. 64 位加法溢出回绕为 0。
-3. 32 位 MOV 零扩展、32 位加法回绕、32 位值加 64 位立即数得到 `0x1_0000_0000`。
-4. 同一组位模式在 JSGT（有符号）和 JGT（无符号）下得到不同分支结果。
-5. 小端加载正确；8 字节读取越过 4 字节输入区被拒绝；越界读被拒绝。
-6. 栈存储/加载往返 `0x11223344`；写输入区被拒绝。
-7. 除零与未知 helper 被拒绝。
-8. helper 1 对 `[1,2,3,4]` 返回 10。
-9. 循环超预算、写 r10、越界跳转、未知 opcode 均被拒绝。
+## 功能
 
-本地三个后端（默认 wasm-gc、wasm、js）全部通过；远端 GitHub Actions 的 wasm、wasm-gc、js、native 四个任务也全部通过。本机没有 C 编译器，所以本地 native 未运行。
+- **指令执行**：ALU32/ALU64、条件跳转、LDX/STX/ST、LD_IMM64、CALL、EXIT。
+- **64 位语义**：位模式运算、32 位结果零扩展、算术/逻辑右移、有符号与无符号比较、除零拒绝。
+- **内存模型**：只读输入区、可写栈区、map 值暂存区；越界访问拒绝。
+- **调试器**：`Machine::step()`、断点、`run_until_break()`、寄存器快照。
+- **子程序调用**：`call` 带返回栈和调用深度上限；超限拒绝。
+- **Array map**：lookup/update/delete helper，键值大小与容量检查。
+- **ELF64 子集**：读取 little-endian ELF、`.text`、`.symtab`/`.strtab`，只接受 `EM_BPF`。
+- **反汇编**：文本输出 ALU、内存、跳转、helper 调用和 64 位立即数。
 
-## 最小使用示例
+## 快速开始
 
-```moonbit
-import { "btlqql/moon_bpflab" @bpf }
-
-let prog = [
-  @bpf.insn(0xb7, 0, 0, 0, 42), // mov64 r0, 42
-  @bpf.insn(0x95, 0, 0, 0, 0),  // exit
-]
-let r0 = @bpf.execute(prog, [], 100)
-println(r0) // 42
-```
-
-## 构建与测试
-
-要求 MoonBit 工具链（本原型在 `moon 0.1.20260904` 验证）。
+要求 MoonBit 工具链（本版本在 `moon 0.1.20260904` 验证）。CLI 以 JS 为目标，文件读取只使用 Node 内置模块。
 
 ```bash
-moon check
 moon test
+moon run cmd/main --target js -- disasm examples/minimal.elf
+moon run cmd/main --target js -- run examples/minimal.elf
+moon run cmd/main --target js -- run examples/minimal.elf --trace
 ```
 
-## 许可证
+输出：
 
-Apache-2.0，见 [LICENSE](LICENSE)。
+```text
+0: mov64 r0, 42
+1: exit
+r0=0x2a (42)
+```
 
-## 尚未覆盖
+## CLI
 
-- 没有 ELF 加载、重定位、maps、子程序调用与调用深度限制。
-- 没有反汇编、单步/断点 API、寄存器与内存快照导出；目前只有一次执行返回 r0。
-- 没有加载真实编译器生成的程序，也没有与 uBPF 或内核语义做逐指令对照。
-- 未实现 helper 注册表、字节序切换、复杂内存区域和资源限额的完整矩阵。
+```text
+bpflab disasm <file>                 disassemble raw BPF or ELF .text
+bpflab run <file> [input-hex] [--trace]
+                                      execute and print r0
+bpflab elf <file>                    print ELF entry, text size and symbols
+```
 
-## 下一轮门槛
+`run` 的第二个参数是可选的十六进制输入，作为只读输入区；`--trace` 每步打印 pc、反汇编和 r0。
 
-先补 ELF 子集、子程序调用和调用深度，再用真实编译器生成的受支持程序与固定提交的 uBPF 对照返回值和可比较状态。明确指令/ELF/helper 支持矩阵；不支持的指令必须拒绝，不能忽略后继续输出成功结果。
+## 支持的指令
+
+| 类别 | 指令 |
+|---|---|
+| ALU64 | add, sub, mul, div, or, and, lsh, rsh, neg, mod, xor, mov, arsh |
+| ALU32 | 同上，结果零扩展到 64 位 |
+| 跳转 | ja, jeq, jgt, jge, jset, jne, jsgt, jsge, jlt, jle, jslt, jsle |
+| 内存 | ldxb/h/w/dw, stxb/h/w/dw, stb/h/w/dw |
+| 其他 | lddw, call (helper 与本地子程序), exit |
+
+helper 1 对输入/栈逐字节求和；helper 2/3/4 是 array map 的 lookup/update/delete。
+
+## 测试
+
+`moon test` 共 17 项：
+
+- r0 返回、64 位溢出、32 位零扩展/回绕、有符号与无符号跳转分歧。
+- 小端加载、输入只读、栈往返、越界拒绝。
+- 除零、未知 helper、未知 opcode、r10 写入、越界跳转、步数预算。
+- helper 求和。
+- 反汇编 ALU/内存/跳转/helper。
+- 单步、快照、断点。
+- 本地子程序调用与调用深度上限。
+- array map update/lookup/delete。
+- 最小 ELF 加载、原始字节码解码、坏 ELF 拒绝。
+
+GitHub Actions 在 wasm、wasm-gc、js、native 四个后端执行 check/build/test。
+
+## 明确不做
+
+- 不是内核 verifier：不实现完整类型跟踪、有界循环证明、map 类型兼容矩阵或内核 helper 全集。
+- 不实现 CO-RE、BTF、重定位、JIT、eBPF 到 eBPF 的完整调用约定。
+- 只加载 ELF64 little-endian 的 `.text` 子集，不处理程序头、动态段、多段代码或伪 map fd。
+- 不提供生产级隔离；执行器只用于离线工具和测试，不应用于运行不可信生产代码。
+- array map 是固定容量模型，不含 hash map、per-CPU map、ring buffer 或并发语义。
+
+## 后续
+
+优先补：更多 ELF 段与重定位、BTF 子集、hash map、更多 helper、断点条件、指令级 trace 导出、与固定提交 uBPF 的逐指令对照。每项都要有真实编译产物和失败样例，再谈发布。
