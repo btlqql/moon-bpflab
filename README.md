@@ -67,7 +67,7 @@ helper 1 对输入/栈逐字节求和；helper 2/3/4 是 array map 的 lookup/up
 
 ## 测试
 
-`moon test` 共 18 项：
+`moon test` 共 24 项：
 
 - r0 返回、64 位溢出、32 位零扩展/回绕、有符号与无符号跳转分歧。
 - 小端加载、输入只读、栈往返、越界拒绝。
@@ -78,8 +78,15 @@ helper 1 对输入/栈逐字节求和；helper 2/3/4 是 array map 的 lookup/up
 - 本地子程序调用与调用深度上限。
 - array map update/lookup/delete。
 - 最小 ELF 加载、原始字节码解码、坏 ELF 拒绝。
+- uBPF 差分向量：arsh/arsh64/early-exit/ldxb/factorial，6 项一致；除零与 ldxsw 的差异记录在 [docs/ubpf-conformance.md](docs/ubpf-conformance.md)。
 
 GitHub Actions 在 wasm、wasm-gc、js、native 四个后端执行 check/build/test。
+
+## 外部对照
+
+- 已对 [iovisor/ubpf](https://github.com/iovisor/ubpf) 提交 `8d2dd35` 的 6 个测试向量做差分，结果与差异见 [docs/ubpf-conformance.md](docs/ubpf-conformance.md)。
+- uBPF 测试向量来源与许可证见 [THIRD_PARTY.md](THIRD_PARTY.md)。
+- 未运行 uBPF 本体：本机没有 C 编译器、Docker、WSL 发行版或 Rust 工具链。
 
 ## 明确不做
 
