@@ -83,6 +83,42 @@ fn load_program(bytes : Array[Int]) -> Array[@bpf.Insn]? {
   }
 }
 
+fn dec_parse(text : String) -> Int? {
+  if text.length() == 0 {
+    return None
+  }
+  let mut value = 0
+  for i in 0..<text.length() {
+    let c = text[i].to_int()
+    if c < 48 || c > 57 {
+      return None
+    }
+    value = value * 10 + (c - 48)
+  }
+  Some(value)
+}
+
+fn parse_u64(text : String) -> UInt64? {
+  let body = if text.has_prefix("0x") || text.has_prefix("0X") {
+    text.substring(start=2)
+  } else {
+    text
+  }
+  match hex_byte(body) {
+    Some(bytes) =>
+      if bytes.length() == 0 || bytes.length() > 8 {
+        None
+      } else {
+        let mut value = 0UL
+        for b in bytes {
+          value = value.shl(8).lor(b.to_uint64())
+        }
+        Some(value)
+      }
+    None => None
+  }
+}
+
 fn run() -> Unit {
   let args = @env.args()
   if args.length() < 3 {
@@ -115,9 +151,62 @@ fn run() -> Unit {
   } else if command == "run" && args.length() >= 4 {
     let mut input : Array[Int] = []
     let mut trace = false
-    for i in 4..<args.length() {
+    let mut break_pc = -1
+    let mut has_condition = false
+    let mut condition_pc = -1
+    let mut condition_reg = -1
+    let mut condition_value = 0UL
+    let mut i = 4
+    while i < args.length() {
       if args[i] == "--trace" {
         trace = true
+        i = i + 1
+      } else if args[i] == "--break" && i + 1 < args.length() {
+        match dec_parse(args[i + 1]) {
+          Some(value) => break_pc = value
+          None => {
+            stderr("ERROR: --break expects a decimal pc")
+            exit_code(2)
+            return
+          }
+        }
+        i = i + 2
+      } else if args[i] == "--when" && i + 1 < args.length() {
+        let parts = args[i + 1].split(":").to_array()
+        if parts.length() != 3 {
+          stderr("ERROR: --when expects pc:reg:hex-value")
+          exit_code(2)
+          return
+        }
+        let pc = match dec_parse(parts[0].to_string()) {
+          Some(value) => value
+          None => {
+            stderr("ERROR: invalid --when pc")
+            exit_code(2)
+            return
+          }
+        }
+        let reg = match dec_parse(parts[1].to_string()) {
+          Some(value) => value
+          None => {
+            stderr("ERROR: invalid --when register")
+            exit_code(2)
+            return
+          }
+        }
+        let value = match parse_u64(parts[2].to_string()) {
+          Some(v) => v
+          None => {
+            stderr("ERROR: invalid --when value")
+            exit_code(2)
+            return
+          }
+        }
+        has_condition = true
+        condition_pc = pc
+        condition_reg = reg
+        condition_value = value
+        i = i + 2
       } else {
         match hex_byte(args[i]) {
           Some(bytes) => input = bytes
@@ -127,6 +216,7 @@ fn run() -> Unit {
             return
           }
         }
+        i = i + 1
       }
     }
     match load_file(args[3]) {
@@ -134,6 +224,53 @@ fn run() -> Unit {
         match load_program(bytes) {
           Some(program) => {
             let machine = @bpf.Machine::new_default(program, input)
+            if break_pc >= 0 {
+              machine.set_breakpoint(break_pc)
+            }
+            if has_condition {
+              let configured = try {
+                machine.set_conditional_breakpoint(
+                  condition_pc, condition_reg, condition_value,
+                )
+                true
+              } catch {
+                _ => false
+              }
+              if !configured {
+                stderr("ERROR: invalid conditional breakpoint")
+                exit_code(1)
+                return
+              }
+            }
+            if break_pc >= 0 || has_condition {
+              let outcome = try {
+                Some(machine.run_until_break())
+              } catch {
+                _ => {
+                  stderr("ERROR: execution failed")
+                  exit_code(1)
+                  None
+                }
+              }
+              match outcome {
+                Some(result) =>
+                  match result {
+                    @bpf.BreakpointHit(pc) => {
+                      let snap = machine.snapshot()
+                      println("breakpoint pc=" + pc.to_string())
+                      println("r0=0x" + snap.regs[0].to_string(radix=16))
+                    }
+                    @bpf.Halted(value) =>
+                      println(
+                        "r0=0x" + value.to_string(radix=16) + " (" +
+                        value.to_string() + ")",
+                      )
+                    @bpf.Continue => ()
+                  }
+                None => ()
+              }
+              return
+            }
             if trace {
               let mut done = false
               while !done {

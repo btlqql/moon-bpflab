@@ -17,7 +17,7 @@ MoonCakes 上已有 [hevienz/moonbit_libbpf](https://mooncakes.io/docs/hevienz/m
 - **指令执行**：ALU32/ALU64、条件跳转、LDX/STX/ST、LD_IMM64、CALL、EXIT。
 - **64 位语义**：位模式运算、32 位结果零扩展、算术/逻辑右移、有符号与无符号比较、除零拒绝。
 - **内存模型**：只读输入区、可写栈区、map 值暂存区；越界访问拒绝。
-- **调试器**：`Machine::step()`、断点、条件断点（寄存器等于指定值）、`run_until_break()`、寄存器快照、指令覆盖计数。
+- **调试器**：`Machine::step()`、断点、条件断点（寄存器等于指定值）、`run_until_break()`、寄存器快照、指令覆盖计数；CLI 暴露 `--break` 与 `--when`。
 - **子程序调用**：`call` 带返回栈和调用深度上限；超限拒绝。
 - **Array map**：lookup/update/delete helper，键值大小与容量检查。
 - **ELF64 子集**：读取 little-endian ELF、`.text`、`.symtab`/`.strtab`，只接受 `EM_BPF`。
@@ -51,7 +51,7 @@ bpflab run <file> [input-hex] [--trace]
 bpflab elf <file>                    print entry, sections and symbols
 ```
 
-`run` 的第二个参数是可选的十六进制输入，作为只读输入区；`--trace` 每步打印 pc、反汇编和 r0。
+`run` 的第二个参数是可选的十六进制输入，作为只读输入区；`--trace` 每步打印 pc、反汇编和 r0；`--break` 在指定 pc 停止；`--when` 在“pc 处且寄存器等于指定值”时停止。
 
 ## 支持的指令
 
