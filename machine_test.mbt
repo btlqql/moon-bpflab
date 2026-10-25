@@ -168,3 +168,20 @@ test "raw bytecode decoding and bad ELF rejection" {
   }
   assert_true(bad)
 }
+
+///|
+test "conditional breakpoint waits for a register value" {
+  let prog = [
+    insn(0xb7, 0, 0, 0, 0),
+    insn(0x07, 0, 0, 0, 1),
+    insn(0xa5, 0, 0, -2, 3),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  let machine = Machine::new_default(prog, [])
+  machine.set_conditional_breakpoint(2, 0, 2UL)
+  match machine.run_until_break() {
+    BreakpointHit(pc) => assert_eq(pc, 2)
+    _ => fail("conditional breakpoint should fire")
+  }
+  assert_eq(machine.snapshot().regs[0].to_int(), 2)
+}

@@ -14,6 +14,12 @@ pub(all) struct Snapshot {
   regs : Array[UInt64]
 }
 
+pub(all) struct ConditionalBreak {
+  pc : Int
+  reg : Int
+  value : UInt64
+}
+
 pub(all) struct Machine {
   program : Array[Insn]
   vm : Vm
@@ -23,6 +29,7 @@ pub(all) struct Machine {
   mut halted : Bool
   mut retval : UInt64
   breakpoints : Array[Int]
+  conditions : Array[ConditionalBreak]
   call_stack : Array[Int]
   max_call_depth : Int
 }
@@ -41,6 +48,7 @@ pub fn Machine::new(
     halted: false,
     retval: 0UL,
     breakpoints: Array::new(),
+    conditions: Array::new(),
     call_stack: Array::new(),
     max_call_depth: 8,
   }
@@ -75,11 +83,29 @@ pub fn Machine::clear_breakpoints(self : Machine) -> Unit {
   while self.breakpoints.length() > 0 {
     ignore(self.breakpoints.pop())
   }
+  while self.conditions.length() > 0 {
+    ignore(self.conditions.pop())
+  }
+}
+
+pub fn Machine::set_conditional_breakpoint(
+  self : Machine,
+  pc : Int,
+  reg : Int,
+  value : UInt64,
+) -> Unit raise BpfError {
+  check_reg(reg)
+  self.conditions.push({ pc, reg, value })
 }
 
 fn is_breakpoint(self : Machine, pc : Int) -> Bool {
   for existing in self.breakpoints {
     if existing == pc {
+      return true
+    }
+  }
+  for condition in self.conditions {
+    if condition.pc == pc && self.vm.regs[condition.reg].equal(condition.value) {
       return true
     }
   }
