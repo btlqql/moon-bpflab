@@ -199,6 +199,13 @@ fn run() -> Unit {
           let image = @bpf.load_elf(bytes)
           println("entry=" + image.entry.to_string())
           println("text_instructions=" + image.text.length().to_string())
+          for section in image.sections {
+            println(
+              "section " + section.name + " type=" + section.typ.to_string() +
+              " size=" + section.size.to_string() + " offset=" +
+              section.offset.to_string(),
+            )
+          }
           for symbol in image.symbols {
             println(
               "symbol " + symbol.name + " value=" + symbol.value.to_string() +

@@ -21,7 +21,7 @@ MoonCakes 上已有 [hevienz/moonbit_libbpf](https://mooncakes.io/docs/hevienz/m
 - **子程序调用**：`call` 带返回栈和调用深度上限；超限拒绝。
 - **Array map**：lookup/update/delete helper，键值大小与容量检查。
 - **ELF64 子集**：读取 little-endian ELF、`.text`、`.symtab`/`.strtab`，只接受 `EM_BPF`。
-- **反汇编**：文本输出 ALU、内存、跳转、helper 调用和 64 位立即数。
+- **反汇编**：文本输出 ALU、内存、跳转、helper 调用和 64 位立即数，并标注跳转/调用目标。
 
 ## 快速开始
 
@@ -48,7 +48,7 @@ r0=0x2a (42)
 bpflab disasm <file>                 disassemble with jump/call targets
 bpflab run <file> [input-hex] [--trace]
                                       execute and print r0
-bpflab elf <file>                    print ELF entry, text size and symbols
+bpflab elf <file>                    print entry, sections and symbols
 ```
 
 `run` 的第二个参数是可选的十六进制输入，作为只读输入区；`--trace` 每步打印 pc、反汇编和 r0。
@@ -67,7 +67,7 @@ helper 1 对输入/栈逐字节求和；helper 2/3/4 是 array map 的 lookup/up
 
 ## 测试
 
-`moon test` 共 27 项：
+`moon test` 共 28 项：
 
 - r0 返回、64 位溢出、32 位零扩展/回绕、有符号与无符号跳转分歧。
 - 小端加载、输入只读、栈往返、越界拒绝。

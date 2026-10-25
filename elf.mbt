@@ -17,10 +17,19 @@ pub(all) struct ElfSymbol {
   info : Int
 }
 
+pub(all) struct ElfSection {
+  name : String
+  typ : Int
+  flags : Int
+  offset : Int
+  size : Int
+}
+
 pub(all) struct ElfImage {
   entry : Int
   text : Array[Insn]
   symbols : Array[ElfSymbol]
+  sections : Array[ElfSection]
 }
 
 fn u8(bytes : Array[Int], off : Int) -> Int raise ElfError {
@@ -88,6 +97,7 @@ pub fn decode_instructions(bytes : Array[Int]) -> Array[Insn] raise ElfError {
 struct Section {
   name_off : Int
   typ : Int
+  flags : Int
   offset : Int
   size : Int
 }
@@ -105,6 +115,7 @@ fn section_at(
   {
     name_off: u32le(bytes, base).to_int(),
     typ: u32le(bytes, base + 4).to_int(),
+    flags: u64le(bytes, base + 8).to_int(),
     offset: u64le(bytes, base + 24).to_int(),
     size: u64le(bytes, base + 32).to_int(),
   }
@@ -161,9 +172,19 @@ pub fn load_elf(bytes : Array[Int]) -> ElfImage raise ElfError {
   let mut text_bytes : Array[Int]? = None
   let mut symtab : Section? = None
   let mut symstr : Section? = None
+  let sections : Array[ElfSection] = Array::new()
   for i in 0..<shnum {
     let section = section_at(bytes, shoff, i, shentsize)
     let name = section_name(strtab, section.name_off)
+    if name.length() > 0 && section.typ != 0 {
+      sections.push({
+        name,
+        typ: section.typ,
+        flags: section.flags,
+        offset: section.offset,
+        size: section.size,
+      })
+    }
     if name == ".text" {
       text_bytes = Some(slice(bytes, section.offset, section.size))
     } else if name == ".symtab" {
@@ -199,5 +220,5 @@ pub fn load_elf(bytes : Array[Int]) -> ElfImage raise ElfError {
     }
     _ => ()
   }
-  { entry, text, symbols }
+  { entry, text, symbols, sections }
 }
