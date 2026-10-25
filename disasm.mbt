@@ -196,3 +196,41 @@ pub fn disassemble(program : Array[Insn]) -> Array[String] {
   }
   out
 }
+
+fn is_conditional_jump(op : Int) -> Bool {
+  op == 0x15 || op == 0x1d || op == 0x25 || op == 0x2d ||
+  op == 0x35 || op == 0x3d || op == 0x45 || op == 0x4d ||
+  op == 0x55 || op == 0x5d || op == 0x65 || op == 0x6d ||
+  op == 0x75 || op == 0x7d || op == 0xa5 || op == 0xad ||
+  op == 0xb5 || op == 0xbd || op == 0xc5 || op == 0xcd ||
+  op == 0xd5 || op == 0xdd
+}
+
+pub fn disassemble_with_targets(program : Array[Insn]) -> Array[String] {
+  let out : Array[String] = Array::new()
+  let mut i = 0
+  while i < program.length() {
+    let ins = program[i]
+    if ins.op == 0x18 && i + 1 < program.length() {
+      let value = (ins.imm.to_int64().reinterpret_as_uint64()).land(
+        0xffffffffUL,
+      ).lor(
+        (program[i + 1].imm.to_int64().reinterpret_as_uint64()).land(
+          0xffffffffUL,
+        ).shl(32),
+      )
+      out.push("lddw " + reg(ins.dst) + ", 0x" + value.to_string(radix=16))
+      i = i + 2
+    } else {
+      let mut line = disassemble_one(ins)
+      if ins.op == 0x05 || is_conditional_jump(ins.op) {
+        line = line + " -> " + (i + 1 + ins.off).to_string()
+      } else if ins.op == 0x85 && ins.src == 1 {
+        line = line + " -> " + (i + 1 + ins.imm).to_string()
+      }
+      out.push(line)
+      i = i + 1
+    }
+  }
+  out
+}

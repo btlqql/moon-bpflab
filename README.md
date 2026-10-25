@@ -45,7 +45,7 @@ r0=0x2a (42)
 ## CLI
 
 ```text
-bpflab disasm <file>                 disassemble raw BPF or ELF .text
+bpflab disasm <file>                 disassemble with jump/call targets
 bpflab run <file> [input-hex] [--trace]
                                       execute and print r0
 bpflab elf <file>                    print ELF entry, text size and symbols
@@ -67,13 +67,13 @@ helper 1 对输入/栈逐字节求和；helper 2/3/4 是 array map 的 lookup/up
 
 ## 测试
 
-`moon test` 共 26 项：
+`moon test` 共 27 项：
 
 - r0 返回、64 位溢出、32 位零扩展/回绕、有符号与无符号跳转分歧。
 - 小端加载、输入只读、栈往返、越界拒绝。
 - 除零、未知 helper、未知 opcode、r10 写入、越界跳转、步数预算。
 - helper 求和。
-- 反汇编 ALU/内存/跳转/helper。
+- 反汇编 ALU/内存/跳转/helper；跳转与本地调用带目标地址。
 - 单步、快照、断点、条件断点、指令覆盖计数、有界运行。
 - 本地子程序调用与调用深度上限。
 - array map update/lookup/delete。

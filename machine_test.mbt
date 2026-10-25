@@ -221,3 +221,19 @@ test "bounded run stops after the requested steps" {
     _ => fail("third step should halt")
   }
 }
+
+///|
+test "disassembly annotates jump and local-call targets" {
+  let prog = [
+    insn(0xb7, 0, 0, 0, 0),
+    insn(0x25, 0, 0, 2, 0),
+    insn(0x05, 0, 0, 1, 0),
+    insn(0x95, 0, 0, 0, 0),
+    insn(0x85, 0, 1, 0, 1),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  let lines = disassemble_with_targets(prog)
+  assert_true(lines[1].contains("-> 4"))
+  assert_true(lines[2].contains("-> 4"))
+  assert_true(lines[4].contains("-> 6"))
+}

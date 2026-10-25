@@ -97,7 +97,7 @@ fn run() -> Unit {
       Some(bytes) =>
         match load_program(bytes) {
           Some(program) => {
-            let lines = @bpf.disassemble(program)
+            let lines = @bpf.disassemble_with_targets(program)
             for i in 0..<lines.length() {
               println(i.to_string() + ": " + lines[i])
             }
