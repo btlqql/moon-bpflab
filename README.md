@@ -14,14 +14,20 @@ MoonCakes 上已有 [hevienz/moonbit_libbpf](https://mooncakes.io/docs/hevienz/m
 
 ## 功能
 
-- **指令执行**：ALU32/ALU64、条件跳转、LDX/STX/ST、LD_IMM64、CALL、EXIT。
-- **64 位语义**：位模式运算、32 位结果零扩展、算术/逻辑右移、有符号与无符号比较、除零拒绝。
+- **指令执行**：ALU32/ALU64、JMP/JMP32、LDX（含符号扩展 MEMSX）、STX/ST、END/BSWAP、LD_IMM64、CALL、EXIT。
+- **64 位语义**：位模式运算、32 位结果零扩展、算术/逻辑右移、有符号与无符号比较；除零返回 0、模零保留被除数，有符号 div/mod 按 RFC 9669。
 - **内存模型**：只读输入区、可写栈区、map 值暂存区；越界访问拒绝。
 - **调试器**：`Machine::step()`、断点、条件断点（寄存器等于指定值）、`run_until_break()`、寄存器快照、指令覆盖计数；CLI 暴露 `--break` 与 `--when`。
-- **子程序调用**：`call` 带返回栈和调用深度上限；超限拒绝。
+- **子程序调用**：`call` 带返回栈、调用深度上限，并保存/恢复 r6–r9；超限拒绝。
 - **Array map**：lookup/update/delete helper，键值大小与容量检查。
 - **ELF64 子集**：读取 little-endian ELF、`.text`、`.symtab`/`.strtab`，只接受 `EM_BPF`。
 - **反汇编**：文本输出 ALU、内存、跳转、helper 调用和 64 位立即数，并标注跳转/调用目标。
+
+## 标准兼容终点
+
+目标是覆盖 eBPF ISA v1.0 的核心指令语义（ALU/ALU64、JMP/JMP32、LDX 含 MEMSX、STX/ST、END/BSWAP、LDDW、CALL、EXIT），参照 RFC 9669 与 uBPF 解释器。矩阵、输入输出案例和明确排除项见 [docs/isa-compatibility.md](docs/isa-compatibility.md)。
+
+不在终点内：atomics、legacy packet load、map fd 伪指令、verifier、BTF、CO-RE、重定位、JIT。
 
 ## 快速开始
 
@@ -67,35 +73,36 @@ helper 1 对输入/栈逐字节求和；helper 2/3/4 是 array map 的 lookup/up
 
 ## 测试
 
-`moon test` 共 28 项：
+`moon test` 共 38 项：
 
 - r0 返回、64 位溢出、32 位零扩展/回绕、有符号与无符号跳转分歧。
 - 小端加载、输入只读、栈往返、越界拒绝。
-- 除零、未知 helper、未知 opcode、r10 写入、越界跳转、步数预算。
+- 除零/模零与有符号 div/mod、JMP32 有符号/无符号比较、END/BSWAP、符号扩展加载、r6–r9 调用保存。
 - helper 求和。
 - 反汇编 ALU/内存/跳转/helper；跳转与本地调用带目标地址。
 - 单步、快照、断点、条件断点、指令覆盖计数、有界运行。
-- 本地子程序调用与调用深度上限。
+- 本地子程序调用、调用深度上限与 callee-saved 寄存器。
 - array map update/lookup/delete。
 - 最小 ELF 加载、原始字节码解码、坏 ELF 拒绝。
-- uBPF 差分向量：arsh/arsh64/early-exit/ldxb/factorial，6 项一致；除零与 ldxsw 的差异记录在 [docs/ubpf-conformance.md](docs/ubpf-conformance.md)。
+- uBPF 差分向量：arsh、early-exit、ldxb、factorial、div/mod 零、sdiv/smod、sdiv32、ldxsw 等一致；见 [docs/ubpf-conformance.md](docs/ubpf-conformance.md)。
 
 GitHub Actions 在 wasm、wasm-gc、js、native 四个后端执行 check/build/test。
 
 ## 外部对照
 
-- 已对 [iovisor/ubpf](https://github.com/iovisor/ubpf) 提交 `8d2dd35` 的 6 个测试向量做差分，结果与差异见 [docs/ubpf-conformance.md](docs/ubpf-conformance.md)。
+- 已对 [iovisor/ubpf](https://github.com/iovisor/ubpf) 提交 `8d2dd35` 的多组向量做差分，包含除零、有符号 div/mod、MEMSX；结果见 [docs/ubpf-conformance.md](docs/ubpf-conformance.md)。
+- 标准兼容终点与矩阵见 [docs/isa-compatibility.md](docs/isa-compatibility.md)。
 - uBPF 测试向量来源与许可证见 [THIRD_PARTY.md](THIRD_PARTY.md)。
 - 未运行 uBPF 本体：本机没有 C 编译器、Docker、WSL 发行版或 Rust 工具链。
 
 ## 明确不做
 
 - 不是内核 verifier：不实现完整类型跟踪、有界循环证明、map 类型兼容矩阵或内核 helper 全集。
-- 不实现 CO-RE、BTF、重定位、JIT、eBPF 到 eBPF 的完整调用约定。
+- 不实现 CO-RE、BTF、重定位、JIT、atomics、legacy packet load、map fd 伪指令，也不做完整内核栈帧校验。
 - 只加载 ELF64 little-endian 的 `.text` 子集，不处理程序头、动态段、多段代码或伪 map fd。
 - 不提供生产级隔离；执行器只用于离线工具和测试，不应用于运行不可信生产代码。
 - array map 是固定容量模型，不含 hash map、per-CPU map、ring buffer 或并发语义。
 
 ## 后续
 
-优先补：更多 ELF 段与重定位、BTF 子集、hash map、更多 helper、断点条件、指令级 trace 导出、与固定提交 uBPF 的逐指令对照。每项都要有真实编译产物和失败样例，再谈发布。
+优先补：更多 ELF 段与重定位、BTF 子集、hash map、更多 helper、条件断点表达式、指令级 trace 导出、atomics/legacy 指令的明确拒绝测试。每项都要有真实编译产物和失败样例，再谈发布。
