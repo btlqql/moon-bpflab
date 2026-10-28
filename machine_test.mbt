@@ -306,3 +306,16 @@ test "sign-extending loads match MEMSX semantics" {
   let half = [insn(0x89, 0, 1, 0, 0), insn(0x95, 0, 0, 0, 0)]
   assert_true(execute(half, [0x00, 0x80], 100).equal(0xffffffffffff8000UL))
 }
+
+///|
+test "local calls preserve r6-r9" {
+  let prog = [
+    insn(0xb7, 6, 0, 0, 5),
+    insn(0x85, 0, 1, 0, 2),
+    insn(0xbf, 0, 6, 0, 0),
+    insn(0x95, 0, 0, 0, 0),
+    insn(0xb7, 6, 0, 0, 9),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  assert_eq(execute(prog, [], 100).to_int(), 5)
+}

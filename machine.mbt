@@ -31,6 +31,7 @@ pub(all) struct Machine {
   breakpoints : Array[Int]
   conditions : Array[ConditionalBreak]
   call_stack : Array[Int]
+  call_saved : Array[UInt64]
   executed : Array[Int]
   max_call_depth : Int
 }
@@ -51,6 +52,7 @@ pub fn Machine::new(
     breakpoints: Array::new(),
     conditions: Array::new(),
     call_stack: Array::new(),
+    call_saved: Array::new(),
     executed: Array::new(),
     max_call_depth: 8,
   }
@@ -149,6 +151,7 @@ fn step_once(
   vm : Vm,
   pc : Int,
   call_stack : Array[Int],
+  call_saved : Array[UInt64],
   max_call_depth : Int,
 ) -> (Int, UInt64?) raise BpfError {
   let ins = program[pc]
@@ -276,6 +279,10 @@ fn step_once(
         raise CallDepthExceeded
       }
       call_stack.push(pc + 1)
+      call_saved.push(vm.regs[6])
+      call_saved.push(vm.regs[7])
+      call_saved.push(vm.regs[8])
+      call_saved.push(vm.regs[9])
       next_pc = pc + 1 + ins.imm
     } else if ins.src != 0 {
       raise UnsupportedCallMode(ins.src)
@@ -315,6 +322,22 @@ fn step_once(
       let ret = match call_stack.pop() {
         Some(value) => value
         None => pc + 1
+      }
+      vm.regs[9] = match call_saved.pop() {
+        Some(value) => value
+        None => vm.regs[9]
+      }
+      vm.regs[8] = match call_saved.pop() {
+        Some(value) => value
+        None => vm.regs[8]
+      }
+      vm.regs[7] = match call_saved.pop() {
+        Some(value) => value
+        None => vm.regs[7]
+      }
+      vm.regs[6] = match call_saved.pop() {
+        Some(value) => value
+        None => vm.regs[6]
       }
       return (ret, None)
     }
@@ -360,7 +383,12 @@ pub fn Machine::step(self : Machine) -> StepResult raise BpfError {
   }
   self.executed[self.pc] = self.executed[self.pc] + 1
   let (next, halt) = step_once(
-    self.program, self.vm, self.pc, self.call_stack, self.max_call_depth,
+    self.program,
+    self.vm,
+    self.pc,
+    self.call_stack,
+    self.call_saved,
+    self.max_call_depth,
   )
   self.pc = next
   match halt {
