@@ -278,3 +278,20 @@ test "JMP32 compares low 32 bits with unsigned and signed semantics" {
   let ja32 = [insn(0x06, 0, 0, 1, 0), insn(0xb7, 0, 0, 0, 1), insn(0x95, 0, 0, 0, 0)]
   assert_eq(execute(ja32, [], 100).to_int(), 0)
 }
+
+///|
+test "endianness instructions truncate and byte-swap" {
+  let be16 = [insn(0xb7, 0, 0, 0, 0x1122), insn(0xdc, 0, 0, 0, 16), insn(0x95, 0, 0, 0, 0)]
+  assert_eq(execute(be16, [], 100).to_int(), 0x2211)
+  let le32 = [insn(0xb7, 0, 0, 0, 0x12345678), insn(0xd4, 0, 0, 0, 32), insn(0x95, 0, 0, 0, 0)]
+  assert_eq(execute(le32, [], 100).to_int(), 0x12345678)
+  let le16 = [insn(0xb7, 0, 0, 0, 0x12345678), insn(0xd4, 0, 0, 0, 16), insn(0x95, 0, 0, 0, 0)]
+  assert_eq(execute(le16, [], 100).to_int(), 0x5678)
+  let bswap = [
+    insn(0x18, 0, 0, 0, 0x55667788),
+    insn(0, 0, 0, 0, 0x11223344),
+    insn(0xd7, 0, 0, 0, 0),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  assert_true(execute(bswap, [], 100).equal(0x8877665544332211UL))
+}

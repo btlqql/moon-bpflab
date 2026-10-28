@@ -54,6 +54,57 @@ fn sign_extend_low32(x : UInt64) -> UInt64 {
   x.shl(32).reinterpret_as_int64().shr(32).reinterpret_as_uint64()
 }
 
+fn bswap64(x : UInt64) -> UInt64 {
+  x.shl(56).land(0xff00000000000000UL).lor(
+    x.shl(40).land(0x00ff000000000000UL),
+  ).lor(
+    x.shl(24).land(0x0000ff0000000000UL),
+  ).lor(
+    x.shl(8).land(0x000000ff00000000UL),
+  ).lor(
+    x.shr(8).land(0x00000000ff000000UL),
+  ).lor(
+    x.shr(24).land(0x0000000000ff0000UL),
+  ).lor(
+    x.shr(40).land(0x000000000000ff00UL),
+  ).lor(x.shr(56))
+}
+
+fn bswap16(x : UInt64) -> UInt64 {
+  low32(x).land(0xffffUL).shl(8).lor(low32(x).land(0xffffUL).shr(8)).land(0xffffUL)
+}
+
+fn bswap32(x : UInt64) -> UInt64 {
+  low32(x).shl(24).land(0xff000000UL).lor(
+    low32(x).shl(8).land(0x00ff0000UL),
+  ).lor(
+    low32(x).shr(8).land(0x0000ff00UL),
+  ).lor(low32(x).shr(24).land(0x000000ffUL))
+}
+
+fn endian_op(op : Int, value : UInt64, width : Int) -> UInt64 {
+  if op == 0xd4 {
+    // Little-endian conversion on a little-endian value is truncation.
+    if width == 16 {
+      low32(value).land(0xffffUL)
+    } else if width == 32 {
+      low32(value)
+    } else {
+      value
+    }
+  } else if op == 0xdc {
+    if width == 16 {
+      bswap16(value)
+    } else if width == 32 {
+      bswap32(value)
+    } else {
+      bswap64(value)
+    }
+  } else {
+    bswap64(value)
+  }
+}
+
 pub(all) struct ArrayMap {
   key_size : Int
   value_size : Int

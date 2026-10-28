@@ -307,6 +307,9 @@ fn step_once(
       return (ret, None)
     }
     return (pc, Some(vm.regs[0]))
+  } else if op == 0xd4 || op == 0xdc || op == 0xd7 {
+    check_dst(ins.dst)
+    vm.regs[ins.dst] = endian_op(op, vm.regs[ins.dst], ins.imm)
   } else if op == 0x18 {
     check_dst(ins.dst)
     if ins.src != 0 {

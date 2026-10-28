@@ -163,6 +163,11 @@ pub fn disassemble_one(ins : Insn) -> String {
     } else {
       "call helper " + ins.imm.to_string()
     }
+  } else if op == 0xd4 || op == 0xdc {
+    (if op == 0xd4 { "le" } else { "be" }) + ins.imm.to_string() + " " +
+    reg(ins.dst)
+  } else if op == 0xd7 {
+    "bswap " + reg(ins.dst)
   } else if op == 0x95 {
     "exit"
   } else if op == 0x18 {
