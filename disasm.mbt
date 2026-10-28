@@ -136,6 +136,15 @@ pub fn disassemble_one(ins : Insn) -> String {
   } else if op == 0x61 || op == 0x69 || op == 0x71 || op == 0x79 {
     load_name(op) + " " + reg(ins.dst) + ", [" + reg(ins.src) +
     signed(ins.off) + "]"
+  } else if op == 0x81 || op == 0x89 || op == 0x91 {
+    let name = if op == 0x81 {
+      "ldxsw"
+    } else if op == 0x89 {
+      "ldxsh"
+    } else {
+      "ldxsb"
+    }
+    name + " " + reg(ins.dst) + ", [" + reg(ins.src) + signed(ins.off) + "]"
   } else if op == 0x63 || op == 0x6b || op == 0x73 || op == 0x7b {
     store_name(op) + " [" + reg(ins.dst) + signed(ins.off) + "], " +
     reg(ins.src)

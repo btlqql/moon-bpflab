@@ -49,6 +49,11 @@ fn low32(x : UInt64) -> UInt64 {
   x.land(0xffffffffUL)
 }
 
+fn sign_extend_n(x : UInt64, bits : Int) -> UInt64 {
+  let shift = 64 - bits
+  x.shl(shift).reinterpret_as_int64().shr(shift).reinterpret_as_uint64()
+}
+
 fn sign_extend_low32(x : UInt64) -> UInt64 {
   // Shift the low 32 bits into the high half, arithmetic-shift back.
   x.shl(32).reinterpret_as_int64().shr(32).reinterpret_as_uint64()

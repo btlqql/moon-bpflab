@@ -295,3 +295,14 @@ test "endianness instructions truncate and byte-swap" {
   ]
   assert_true(execute(bswap, [], 100).equal(0x8877665544332211UL))
 }
+
+///|
+test "sign-extending loads match MEMSX semantics" {
+  let word = [insn(0x81, 0, 1, 2, 0), insn(0x95, 0, 0, 0, 0)]
+  let input : Array[Int] = [0xaa, 0xbb, 0x01, 0x00, 0x00, 0x80, 0xcc, 0xdd]
+  assert_true(execute(word, input, 100).equal(0xffffffff80000001UL))
+  let byte = [insn(0x91, 0, 1, 0, 0), insn(0x95, 0, 0, 0, 0)]
+  assert_true(execute(byte, [0x80], 100).equal(0xffffffffffffff80UL))
+  let half = [insn(0x89, 0, 1, 0, 0), insn(0x95, 0, 0, 0, 0)]
+  assert_true(execute(half, [0x00, 0x80], 100).equal(0xffffffffffff8000UL))
+}

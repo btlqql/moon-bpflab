@@ -200,6 +200,18 @@ fn step_once(
     }
     let addr = vm.regs[ins.src].add(imm_u64(ins.off))
     vm.regs[ins.dst] = vm.load(addr, size)
+  } else if op == 0x81 || op == 0x89 || op == 0x91 {
+    check_dst(ins.dst)
+    check_reg(ins.src)
+    let size = if op == 0x81 {
+      4
+    } else if op == 0x89 {
+      2
+    } else {
+      1
+    }
+    let addr = vm.regs[ins.src].add(imm_u64(ins.off))
+    vm.regs[ins.dst] = sign_extend_n(vm.load(addr, size), size * 8)
   } else if op == 0x63 || op == 0x6b || op == 0x73 || op == 0x7b {
     check_reg(ins.dst)
     check_reg(ins.src)
