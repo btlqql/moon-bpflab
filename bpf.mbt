@@ -324,6 +324,48 @@ fn check_dst(reg : Int) -> Unit raise BpfError {
   }
 }
 
+fn is_jmp32(op : Int) -> Bool {
+  op == 0x06 || op == 0x16 || op == 0x1e || op == 0x26 || op == 0x2e ||
+  op == 0x36 || op == 0x3e || op == 0x46 || op == 0x4e || op == 0x56 ||
+  op == 0x5e || op == 0x66 || op == 0x6e || op == 0x76 || op == 0x7e ||
+  op == 0xa6 || op == 0xae || op == 0xb6 || op == 0xbe || op == 0xc6 ||
+  op == 0xce || op == 0xd6 || op == 0xde
+}
+
+fn jump_taken32(op : Int, dst : UInt64, src : UInt64) -> Bool {
+  let d = low32(dst)
+  let s = low32(src)
+  if op == 0x16 || op == 0x1e {
+    d.equal(s)
+  } else if op == 0x26 || op == 0x2e {
+    d > s
+  } else if op == 0x36 || op == 0x3e {
+    d >= s
+  } else if op == 0x46 || op == 0x4e {
+    !d.land(s).equal(0UL)
+  } else if op == 0x56 || op == 0x5e {
+    !d.equal(s)
+  } else if op == 0x66 || op == 0x6e {
+    sign_extend_low32(d).reinterpret_as_int64() >
+      sign_extend_low32(s).reinterpret_as_int64()
+  } else if op == 0x76 || op == 0x7e {
+    sign_extend_low32(d).reinterpret_as_int64() >=
+      sign_extend_low32(s).reinterpret_as_int64()
+  } else if op == 0xa6 || op == 0xae {
+    d < s
+  } else if op == 0xb6 || op == 0xbe {
+    d <= s
+  } else if op == 0xc6 || op == 0xce {
+    sign_extend_low32(d).reinterpret_as_int64() <
+      sign_extend_low32(s).reinterpret_as_int64()
+  } else if op == 0xd6 || op == 0xde {
+    sign_extend_low32(d).reinterpret_as_int64() <=
+      sign_extend_low32(s).reinterpret_as_int64()
+  } else {
+    false
+  }
+}
+
 fn jump_taken(op : Int, dst : UInt64, src : UInt64) -> Bool {
   if op == 0x15 {
     dst.equal(src)

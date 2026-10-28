@@ -245,6 +245,19 @@ fn step_once(
     if jump_taken(op, vm.regs[ins.dst], src) {
       next_pc = pc + 1 + ins.off
     }
+  } else if op == 0x06 {
+    next_pc = pc + 1 + ins.off
+  } else if is_jmp32(op) {
+    check_reg(ins.dst)
+    let src = if (op & 0x08) != 0 {
+      check_reg(ins.src)
+      vm.regs[ins.src]
+    } else {
+      imm_u64(ins.imm)
+    }
+    if jump_taken32(op, vm.regs[ins.dst], src) {
+      next_pc = pc + 1 + ins.off
+    }
   } else if op == 0x85 {
     if ins.src == 1 {
       if call_stack.length() >= max_call_depth {

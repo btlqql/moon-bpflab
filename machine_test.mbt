@@ -252,3 +252,29 @@ test "ELF loader exposes section names and sizes" {
   }
   assert_true(found_text)
 }
+
+///|
+test "JMP32 compares low 32 bits with unsigned and signed semantics" {
+  let unsigned = [
+    insn(0xb4, 0, 0, 0, -1),
+    insn(0xb7, 1, 0, 0, 0),
+    insn(0x2e, 0, 1, 2, 0),
+    insn(0xb7, 0, 0, 0, 3),
+    insn(0x95, 0, 0, 0, 0),
+    insn(0xb7, 0, 0, 0, 7),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  assert_eq(execute(unsigned, [], 100).to_int(), 7)
+  let signed = [
+    insn(0xb4, 0, 0, 0, -1),
+    insn(0xb7, 1, 0, 0, 0),
+    insn(0x6e, 0, 1, 2, 0),
+    insn(0xb7, 0, 0, 0, 3),
+    insn(0x95, 0, 0, 0, 0),
+    insn(0xb7, 0, 0, 0, 7),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  assert_eq(execute(signed, [], 100).to_int(), 3)
+  let ja32 = [insn(0x06, 0, 0, 1, 0), insn(0xb7, 0, 0, 0, 1), insn(0x95, 0, 0, 0, 0)]
+  assert_eq(execute(ja32, [], 100).to_int(), 0)
+}
