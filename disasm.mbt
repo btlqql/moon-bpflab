@@ -84,6 +84,34 @@ fn jump_name(base : Int) -> String {
   }
 }
 
+fn jump_name32(base : Int) -> String {
+  if base == 0x16 {
+    "jeq32"
+  } else if base == 0x26 {
+    "jgt32"
+  } else if base == 0x36 {
+    "jge32"
+  } else if base == 0x46 {
+    "jset32"
+  } else if base == 0x56 {
+    "jne32"
+  } else if base == 0x66 {
+    "jsgt32"
+  } else if base == 0x76 {
+    "jsge32"
+  } else if base == 0xa6 {
+    "jlt32"
+  } else if base == 0xb6 {
+    "jle32"
+  } else if base == 0xc6 {
+    "jslt32"
+  } else if base == 0xd6 {
+    "jsle32"
+  } else {
+    "jmp32"
+  }
+}
+
 fn load_name(op : Int) -> String {
   if op == 0x61 {
     "ldxw"
@@ -153,6 +181,8 @@ pub fn disassemble_one(ins : Insn) -> String {
     ins.imm.to_string()
   } else if op == 0x05 {
     "ja " + signed(ins.off)
+  } else if op == 0x06 {
+    "ja32 " + signed(ins.off)
   } else if op == 0x15 || op == 0x1d || op == 0x25 || op == 0x2d ||
     op == 0x35 || op == 0x3d || op == 0x45 || op == 0x4d ||
     op == 0x55 || op == 0x5d || op == 0x65 || op == 0x6d ||
@@ -165,6 +195,14 @@ pub fn disassemble_one(ins : Insn) -> String {
       ins.imm.to_string()
     }
     jump_name(base) + " " + reg(ins.dst) + ", " + source + ", " +
+    signed(ins.off)
+  } else if is_jmp32(op) {
+    let source = if (op & 0x08) != 0 {
+      reg(ins.src)
+    } else {
+      ins.imm.to_string()
+    }
+    jump_name32(op & 0xf7) + " " + reg(ins.dst) + ", " + source + ", " +
     signed(ins.off)
   } else if op == 0x85 {
     if ins.src == 1 {
@@ -217,7 +255,7 @@ fn is_conditional_jump(op : Int) -> Bool {
   op == 0x55 || op == 0x5d || op == 0x65 || op == 0x6d ||
   op == 0x75 || op == 0x7d || op == 0xa5 || op == 0xad ||
   op == 0xb5 || op == 0xbd || op == 0xc5 || op == 0xcd ||
-  op == 0xd5 || op == 0xdd
+  op == 0xd5 || op == 0xdd || is_jmp32(op)
 }
 
 pub fn disassemble_with_targets(program : Array[Insn]) -> Array[String] {

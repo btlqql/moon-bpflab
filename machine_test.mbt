@@ -319,3 +319,15 @@ test "local calls preserve r6-r9" {
   ]
   assert_eq(execute(prog, [], 100).to_int(), 5)
 }
+
+///|
+test "disassembly names JMP32 and JA32" {
+  let prog = [
+    insn(0x2e, 0, 1, 2, 0),
+    insn(0x06, 0, 0, 1, 0),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  let lines = disassemble(prog)
+  assert_eq(lines[0], "jgt32 r0, r1, +2")
+  assert_eq(lines[1], "ja32 +1")
+}
