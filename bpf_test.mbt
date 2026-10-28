@@ -111,27 +111,39 @@ test "stack stores round-trip and input is read-only" {
 }
 
 ///|
-test "division by zero and unknown helpers are errors" {
+test "div/mod by zero follow the eBPF interpreter semantics" {
   let div_zero = [
-    insn(0xb7, 0, 0, 0, 1),
+    insn(0xb7, 0, 0, 0, 7),
     insn(0x37, 0, 0, 0, 0),
     insn(0x95, 0, 0, 0, 0),
   ]
-  let rejected = try {
-    ignore(execute(div_zero, [], 100))
-    false
-  } catch {
-    _ => true
-  }
-  assert_true(rejected)
+  assert_eq(execute(div_zero, [], 100).to_int(), 0)
+  let mod_zero = [
+    insn(0xb7, 0, 0, 0, 7),
+    insn(0x97, 0, 0, 0, 0),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  assert_eq(execute(mod_zero, [], 100).to_int(), 7)
+  let signed_div = [
+    insn(0xb7, 0, 0, 0, -7),
+    insn(0x37, 0, 0, 1, 2),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  assert_eq(execute(signed_div, [], 100).to_int(), -3)
+  let signed_mod = [
+    insn(0xb7, 0, 0, 0, -7),
+    insn(0x97, 0, 0, 1, 2),
+    insn(0x95, 0, 0, 0, 0),
+  ]
+  assert_eq(execute(signed_mod, [], 100).to_int(), -1)
   let bad_helper = [insn(0x85, 0, 0, 0, 99), insn(0x95, 0, 0, 0, 0)]
-  let rejected2 = try {
+  let rejected = try {
     ignore(execute(bad_helper, [], 100))
     false
   } catch {
     _ => true
   }
-  assert_true(rejected2)
+  assert_true(rejected)
 }
 
 ///|

@@ -167,7 +167,9 @@ fn step_once(
     } else {
       imm_u64(ins.imm)
     }
-    vm.regs[ins.dst] = alu64(op & 0xf7, vm.regs[ins.dst], src)
+    vm.regs[ins.dst] = alu64(
+      op & 0xf7, vm.regs[ins.dst], src, ins.off == 1,
+    )
   } else if op == 0x04 || op == 0x0c || op == 0x14 || op == 0x1c ||
     op == 0x24 || op == 0x2c || op == 0x34 || op == 0x3c ||
     op == 0x44 || op == 0x4c || op == 0x54 || op == 0x5c ||
@@ -181,7 +183,9 @@ fn step_once(
     } else {
       imm_u64(ins.imm)
     }
-    vm.regs[ins.dst] = alu32(op & 0xf7, vm.regs[ins.dst], src)
+    vm.regs[ins.dst] = alu32(
+      op & 0xf7, vm.regs[ins.dst], src, ins.off == 1,
+    )
   } else if op == 0x61 || op == 0x69 || op == 0x71 || op == 0x79 {
     check_dst(ins.dst)
     check_reg(ins.src)

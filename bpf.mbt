@@ -160,7 +160,83 @@ pub fn Vm::store(
   raise MemoryAccess(addr, size)
 }
 
-fn alu64(op : Int, dst : UInt64, src : UInt64) -> UInt64 raise BpfError {
+let int64_min : Int64 = 0x8000000000000000L
+let int32_min : Int64 = -2147483648L
+
+fn div64(dst : UInt64, src : UInt64, signed_op : Bool) -> UInt64 {
+  if src.equal(0UL) {
+    0UL
+  } else if signed_op {
+    let a = dst.reinterpret_as_int64()
+    let b = src.reinterpret_as_int64()
+    if a.equal(int64_min) && b.equal(-1L) {
+      dst
+    } else {
+      (a / b).reinterpret_as_uint64()
+    }
+  } else {
+    dst.div(src)
+  }
+}
+
+fn mod64(dst : UInt64, src : UInt64, signed_op : Bool) -> UInt64 {
+  if src.equal(0UL) {
+    dst
+  } else if signed_op {
+    let a = dst.reinterpret_as_int64()
+    let b = src.reinterpret_as_int64()
+    if a.equal(int64_min) && b.equal(-1L) {
+      0UL
+    } else {
+      (a % b).reinterpret_as_uint64()
+    }
+  } else {
+    dst.mod(src)
+  }
+}
+
+fn div32(dst : UInt64, src : UInt64, signed_op : Bool) -> UInt64 {
+  let d = low32(dst)
+  let s = low32(src)
+  if s.equal(0UL) {
+    0UL
+  } else if signed_op {
+    let a = sign_extend_low32(d).reinterpret_as_int64()
+    let b = sign_extend_low32(s).reinterpret_as_int64()
+    if a.equal(int32_min) && b.equal(-1L) {
+      low32(0x80000000UL)
+    } else {
+      low32((a / b).reinterpret_as_uint64())
+    }
+  } else {
+    low32(d.div(s))
+  }
+}
+
+fn mod32(dst : UInt64, src : UInt64, signed_op : Bool) -> UInt64 {
+  let d = low32(dst)
+  let s = low32(src)
+  if s.equal(0UL) {
+    d
+  } else if signed_op {
+    let a = sign_extend_low32(d).reinterpret_as_int64()
+    let b = sign_extend_low32(s).reinterpret_as_int64()
+    if a.equal(int32_min) && b.equal(-1L) {
+      0UL
+    } else {
+      low32((a % b).reinterpret_as_uint64())
+    }
+  } else {
+    low32(d.mod(s))
+  }
+}
+
+fn alu64(
+  op : Int,
+  dst : UInt64,
+  src : UInt64,
+  signed_op : Bool,
+) -> UInt64 raise BpfError {
   if op == 0x07 {
     dst.add(src)
   } else if op == 0x17 {
@@ -168,10 +244,7 @@ fn alu64(op : Int, dst : UInt64, src : UInt64) -> UInt64 raise BpfError {
   } else if op == 0x27 {
     dst.mul(src)
   } else if op == 0x37 {
-    if src.equal(0UL) {
-      raise DivisionByZero
-    }
-    dst.div(src)
+    div64(dst, src, signed_op)
   } else if op == 0x47 {
     dst.lor(src)
   } else if op == 0x57 {
@@ -184,10 +257,7 @@ fn alu64(op : Int, dst : UInt64, src : UInt64) -> UInt64 raise BpfError {
     let zero : UInt64 = 0UL
     zero.sub(dst)
   } else if op == 0x97 {
-    if src.equal(0UL) {
-      raise DivisionByZero
-    }
-    dst.mod(src)
+    mod64(dst, src, signed_op)
   } else if op == 0xa7 {
     dst.lxor(src)
   } else if op == 0xb7 {
@@ -199,7 +269,12 @@ fn alu64(op : Int, dst : UInt64, src : UInt64) -> UInt64 raise BpfError {
   }
 }
 
-fn alu32(op : Int, dst : UInt64, src : UInt64) -> UInt64 raise BpfError {
+fn alu32(
+  op : Int,
+  dst : UInt64,
+  src : UInt64,
+  signed_op : Bool,
+) -> UInt64 raise BpfError {
   let d = low32(dst)
   let s = low32(src)
   if op == 0x04 {
@@ -209,10 +284,7 @@ fn alu32(op : Int, dst : UInt64, src : UInt64) -> UInt64 raise BpfError {
   } else if op == 0x24 {
     low32(d.mul(s))
   } else if op == 0x34 {
-    if s.equal(0UL) {
-      raise DivisionByZero
-    }
-    low32(d.div(s))
+    div32(dst, src, signed_op)
   } else if op == 0x44 {
     low32(d.lor(s))
   } else if op == 0x54 {
@@ -225,16 +297,15 @@ fn alu32(op : Int, dst : UInt64, src : UInt64) -> UInt64 raise BpfError {
     let zero : UInt64 = 0UL
     low32(zero.sub(d))
   } else if op == 0x94 {
-    if s.equal(0UL) {
-      raise DivisionByZero
-    }
-    low32(d.mod(s))
+    mod32(dst, src, signed_op)
   } else if op == 0xa4 {
     low32(d.lxor(s))
   } else if op == 0xb4 {
     s
   } else if op == 0xc4 {
-    low32(sign_extend_low32(d).reinterpret_as_int64().shr(s.to_int() & 31).reinterpret_as_uint64())
+    low32(
+      sign_extend_low32(d).reinterpret_as_int64().shr(s.to_int() & 31).reinterpret_as_uint64(),
+    )
   } else {
     raise UnknownOpcode(op)
   }
